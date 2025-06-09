@@ -27,6 +27,7 @@ app.get("/reddit-search", async (req, res) => {
         q: q,
         sort: "relevance",
         limit: 5,
+        restrict_sr: 1
       }
     });
 
