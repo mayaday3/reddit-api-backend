@@ -79,6 +79,7 @@ app.get("/reddit-search", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`🚀 Server running on port ${port}`);
+  await fetchRedditAccessToken(); // 🔐 Get your first token when app starts
 });
