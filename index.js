@@ -48,35 +48,72 @@ app.get("/reddit-search", async (req, res) => {
     : `https://oauth.reddit.com/search`;
 
   try {
-    const response = await axios.get(baseUrl, {
-      headers: {
-        Authorization: `Bearer ${process.env.REDDIT_ACCESS_TOKEN}`,
-        "User-Agent": "harm-reduction-gpt/0.1"
-      },
-      params: {
-        q,
-        sort: "relevance",
-        limit: 5,
-        restrict_sr: subreddit ? 1 : undefined
-      }
-    });
+  let response = await axios.get(baseUrl, {
+    headers: {
+      Authorization: `Bearer ${redditAccessToken}`,
+      "User-Agent": "harm-reduction-gpt/0.1"
+    },
+    params: {
+      q,
+      sort: "relevance",
+      limit: 5,
+      restrict_sr: subreddit ? 1 : undefined
+    }
+  });
 
-    console.log("📦 Reddit response:", JSON.stringify(response.data, null, 2));
+  // If no results, log for debugging
+  console.log("📦 Reddit response:", JSON.stringify(response.data, null, 2));
 
-    const posts = response.data.data.children.map(post => ({
-      title: post.data.title,
-      selftext: post.data.selftext,
-      permalink: post.data.permalink,
-      url: `https://reddit.com${post.data.permalink}`
-    }));
+  const posts = response.data.data.children.map(post => ({
+    title: post.data.title,
+    selftext: post.data.selftext,
+    permalink: post.data.permalink,
+    url: `https://reddit.com${post.data.permalink}`
+  }));
 
-    res.json({ results: posts });
-  } catch (error) {
-    res.status(500).json({
-      error: "Failed to fetch Reddit posts",
-      details: error.response?.data || error.message
-    });
+  res.json({ results: posts });
+} catch (error) {
+  if (error.response?.status === 401) {
+    console.warn("⚠️ Token expired — refreshing...");
+    await fetchRedditAccessToken(); // Get new token
+
+    try {
+      // Retry the request with new token
+      const retry = await axios.get(baseUrl, {
+        headers: {
+          Authorization: `Bearer ${redditAccessToken}`,
+          "User-Agent": "harm-reduction-gpt/0.1"
+        },
+        params: {
+          q,
+          sort: "relevance",
+          limit: 5,
+          restrict_sr: subreddit ? 1 : undefined
+        }
+      });
+
+      const posts = retry.data.data.children.map(post => ({
+        title: post.data.title,
+        selftext: post.data.selftext,
+        permalink: post.data.permalink,
+        url: `https://reddit.com${post.data.permalink}`
+      }));
+
+      return res.json({ results: posts });
+    } catch (retryErr) {
+      return res.status(500).json({
+        error: "Reddit retry failed after token refresh",
+        details: retryErr.message
+      });
+    }
   }
+
+  console.error("❌ Reddit fetch error:", error.message);
+  res.status(500).json({
+    error: "Failed to fetch Reddit posts",
+    details: error.message
+  });
+}
 });
 
 app.listen(port, async () => {
