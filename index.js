@@ -1,14 +1,11 @@
 const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
+const axios = require("axios");
 
 app.get("/", (req, res) => {
   res.send("Harm Reduction Reddit API is live!");
 });
-
-
-
-const axios = require("axios");
 
 app.get("/reddit-search", async (req, res) => {
   const { q, subreddit } = req.query;
@@ -31,8 +28,10 @@ app.get("/reddit-search", async (req, res) => {
       }
     });
 
-    console.log(JSON.stringify(response.data, null, 2));
-    
+    // 🧪 DEBUG LOGGING
+    console.log("🔍 Search Parameters:", { q, subreddit });
+    console.log("📦 Full Reddit API response:", JSON.stringify(response.data, null, 2));
+
     const posts = response.data.data.children.map(post => {
       return {
         title: post.data.title,
@@ -44,9 +43,14 @@ app.get("/reddit-search", async (req, res) => {
 
     res.json({ results: posts });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch Reddit posts", details: error.message });
+    console.error("❌ Error fetching from Reddit:", error.message);
+    res.status(500).json({
+      error: "Failed to fetch Reddit posts",
+      details: error.message
+    });
   }
 });
+
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
 });
