@@ -2,7 +2,36 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
 const axios = require("axios");
+let redditAccessToken = null;
 
+async function fetchRedditAccessToken() {
+  const auth = Buffer.from(
+    `${process.env.REDDIT_CLIENT_ID}:${process.env.REDDIT_CLIENT_SECRET}`
+  ).toString("base64");
+
+  try {
+    const response = await axios.post(
+      "https://www.reddit.com/api/v1/access_token",
+      new URLSearchParams({
+        grant_type: "password",
+        username: process.env.REDDIT_USERNAME,
+        password: process.env.REDDIT_PASSWORD,
+      }),
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "harm-reduction-gpt/0.1"
+        }
+      }
+    );
+
+    redditAccessToken = response.data.access_token;
+    console.log("✅ New Reddit access token fetched");
+  } catch (err) {
+    console.error("❌ Failed to fetch Reddit access token:", err.message);
+  }
+}
 app.get("/", (req, res) => {
   res.send("Harm Reduction Reddit API is live!");
 });
